@@ -15,6 +15,9 @@ Main Procedure:
 2.NN for answer/class prediction:
   i)encode question (question -> question_embedding (qe) )
   ii)NN to predict class (of the answer) (easy) (qe->coa (class_of_answer))
-  iii)for each rnn cell: input = prev_output + coa, 
-                         output = word_one_hot or word_embedded? (not clear about part(iii), TO BE MODIFIED)
-3.loss func
+  iii)for each rnn cell: input = prev_output (or <SOS>) + coa, 
+                         output = one_hot_vec (size = vocabulary_size)
+                         output = softmax(output)
+                         loss = f(output,real_answer), output = maxarg(output)
+3.loss func:
+  loss_in_cluster_pred + parameter*loss_in_answer_pred
