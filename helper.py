@@ -1,4 +1,5 @@
 #helper functions
+import matplotlib.pyplot as plt #using PCA here
 
 #wr step for computing sentence vector
 #ref page4 of paper about WR+PCA
@@ -10,4 +11,8 @@ def sentence_vector_wr(embedded_sentence, probability, sentence_size, parameter_
     result += (parameter_a / (parameter_a + probability[i])) * embedded_sentence[i]
   result = result / sentence_size
   return result
+  
+######DONT KNOW HOW TO COMPUTE PCA######
+def sentence_vector_pca(sentence_vector_list):
+  list_length = len(sentence_vector_list)
   
