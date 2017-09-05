@@ -35,8 +35,10 @@ def cluster_train(answers, embedder, answer_length, prob_dict):
 		
 	sentence_vector_pca(answer_vec) #doing PCA for all sentence_vec of answers
 	
-	#clustering using answer_vec, ALGO TO BE DECIDED
-	
+	#clustering using answer_vec, use k-means
+	#TO BE IMPLEMENTED (using sk kit Kmeans)
+
+	#return the kmean center
 	
 #-------------End of The Cluster Model-----------#
 
