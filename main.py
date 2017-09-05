@@ -1,9 +1,8 @@
 #note:sentence_size here does not include <SOS> or <EOS>
+import numpy as np
 import torch
 import torch.nn as nn
-
-
-
+from sklearn.cluster import KMeans
 
 
 use_cuda = torch.cuda.is_available
@@ -14,39 +13,43 @@ UNK_token = 2
 
 MAX_SEQ_LEN = 20
 
-#-------------Train The Cluster Model------------#
-def cluster_train_step(q_batch)
+#use list represent list, np.array represent normal vector, pytorch.Variable represent vector/tensor in NN
+
+#-------------Cluster Training------------#
 
 #probability dict should be calculated while generating word dict
-#here the input of embedder is a sentence(int value,  padded)
-def cluster_train(answers, embedder, answer_length, prob_dict):
-	answer_vec = []
-	a = 1 #TO BE DECIDED
-
+#here the input of embedder is a sentence(int value,  padded), of course we need to make all embedder the SAME one
+def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster):
+	a = 1 #the Parameter in wr calculation, value TO BE DECIDED
+	answers_vec = [] #the list of sentence vectors of answers
 	
-	
+	#doing wr+PCA
+	#wr
 	for i in range(answers):
-		prob = [] #prob of the sentence
+		prob = [] #prob of words in this sentence
 		for j in range(len(answers[i])):
-			word_prob = prob_dict[answers[i][j+1]]
+			word_prob = prob_dict[answers[i][j+1]] #the ith sentence, j+1th word in it
 			prob.append(word_prob) #finish retrieving the prob of word in this sentence
-		wr = sentence_vector_wr(embedder(answers[i]), prob, answers_length[i], a) #wr is the sentence_vec (not PCAed yet)
-		answer_vec.append(wr)
-		
-	sentence_vector_pca(answer_vec) #doing PCA for all sentence_vec of answers
-	
-	#clustering using answer_vec, use k-means
-	#TO BE IMPLEMENTED (using sk kit Kmeans)
+		sentence_vec_wr = sentence_vector_wr(embedder(answers[i]), prob, answers_length[i], a) #wr is the sentence_vec (not PCAed yet)
+		answers_vec.append(sentence_vec_wr)
+	#doing PCA for all sentence_vec of answers
+	sentence_vector_pca(answers_vec)
 
-	#return the kmean center
+	#clustering using answer_vec, use k-means
+	kmeans = kMeans(n_clusters=num_cluster, n_jobs=-1)
+	centers = kmeans.cluster_centers_ #shape: [num_cluster, embedding_size]
 	
-#-------------End of The Cluster Model-----------#
+	#return the kmean center
+	return centers
+	
+#-------------End of Cluster Training-----------#
 
 
 #-------------Train The Main Model------------#
 
 #(Development use)List the models needed to be implemented in model.py, which are used here
-#1.
+#1.Encoder
+#2.
 
 def _train_step(q_batch, a_batch, q_lens, a_lens, embedder, ):
 	
