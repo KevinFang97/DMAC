@@ -49,12 +49,18 @@ def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster):
 
 #(Development use)List the models needed to be implemented in model.py, which are used here
 #1.Encoder
-#2.
+#2.Decoder
+#...... =.= seems no more
 
-def _train_step(q_batch, a_batch, q_lens, a_lens, embedder, ):
-	
+def _train_step(q_batch, a_batch, q_lens, a_lens, embedder, encoder, decoder, embedder_optimizer, encoder_optimizer, decoder_optimizer):
+	'''
+    Train one instance
+    '''
+
 	#zero-grad for optimizers 
-	#TBA
+    embedder_optimizer.zero_grad()
+    encoder_optimizer.zero_grad()
+    decoder_optimizer.zero_grad()
 
 	batch_size = len(q_batch)
 
@@ -63,7 +69,16 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, embedder, ):
 	a = Variable(a_batch)
 	a = a.cuda() if use_cuda else a
 
+	#embed q
 	q_emb = embedder(q)
-	a_emb = embedder(a)
+	#encode q
+    _, q_enc = encoder(q_emb) #q_enc size: TO BE ADDED
+	#cluster a
+	loss_clu, a_clu = cluster(a) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
 
-	
+	qnc = torch.cat([q_enc,a_clu],1) #HOW DOES IT LOOK LIKE AFTER CAT??? NEED EXPERIMENT!!! WHAT AXIS?？？
+	#lets assume last line is correct
+
+	decoder_input = qnc #NEED MODIFIED
+
+	#dont know how to write decoder in pytorch yet, TBC
