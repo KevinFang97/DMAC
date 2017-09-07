@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 ###answer prediction###
 
+#TBC
 class Encoder(nn.Module):
   def __init__(self, input_size, n_layers=1):
     super(Encoder, self).__init__()
@@ -28,3 +29,16 @@ class Encoder(nn.Module):
     
     self.gru = nn.GRU
  
+#
+class Classifier(nn.Module):
+  def __init__(self, cluster_centers, num_of_cluster):
+    super(Classifier, self).__init__()
+    self.cluster_centers = cluster_centers
+    self.num_of_cluster = num_of_cluster
+
+  def forward(answer, batch_size):
+    #answer size: (batch_size, max_seq_len, embedding_size)
+    #cluster_centers size: (num_cluster, embedding_size)
+    #result size: (batch_size, num_cluster)
+    #using loop which is more readable, less error prone, maybe matrix operation method will be addded
+    

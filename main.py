@@ -52,12 +52,13 @@ def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster):
 #2.Decoder
 #...... =.= seems no more
 
-def _train_step(q_batch, a_batch, q_lens, a_lens, embedder, encoder, decoder, embedder_optimizer, encoder_optimizer, decoder_optimizer):
+def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder, decoder, classifier_optimizer, embedder_optimizer, encoder_optimizer, decoder_optimizer):
 	'''
     Train one instance
     '''
 
 	#zero-grad for optimizers 
+	classifier_optimizer.zero_grad()
     embedder_optimizer.zero_grad()
     encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
@@ -74,7 +75,7 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, embedder, encoder, decoder, em
 	#encode q
     _, q_enc = encoder(q_emb) #q_enc size: TO BE ADDED
 	#cluster a
-	loss_clu, a_clu = cluster(a) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
+	loss_clu, a_clu = classifier(a, a_lens) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
 
 	qnc = torch.cat([q_enc,a_clu],1) #HOW DOES IT LOOK LIKE AFTER CAT??? NEED EXPERIMENT!!! WHAT AXIS?？？
 	#lets assume last line is correct

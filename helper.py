@@ -18,3 +18,5 @@ def sentence_vector_wr(embedded_sentence, prob, sentence_size, parameter_a):
 def sentence_vector_pca(sentence_vector_list):
   list_length = len(sentence_vector_list)
   
+def cluster_pred(answer, cluster_center, num_cluster):
+  #answer size: (batch_size, max_length)
