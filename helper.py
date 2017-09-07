@@ -17,6 +17,14 @@ def sentence_vector_wr(embedded_sentence, prob, sentence_size, parameter_a):
 ######DONT KNOW HOW TO COMPUTE PCA######
 def sentence_vector_pca(sentence_vector_list):
   list_length = len(sentence_vector_list)
-  
+  sentence_vector_array = torch.FloatTensor(sentence_vector_list)
+  sigma = torch.matmul(torch.transpose(sentence_vector_array, 1, 0), sentence_vector_array)
+  sigma = sigma / list_length
+  u, _, _ = torch.svd(sigma)
+  u = u[:, 0]
+  uut = torch.matmul(u.T, u)
+  sentence_vector_array = sentence_vector_array * (1 - uut)
+  return sentence_vector_array
+
 def cluster_pred(answer, cluster_center, num_cluster):
   #answer size: (batch_size, max_length)
