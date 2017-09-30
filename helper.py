@@ -5,13 +5,27 @@ import numpy as np
 #wr step for computing sentence vector
 #ref page4 of paper about WR+PCA
 #probability is a list of probabilities of words in sentence
-######<SOS>, <EOS> not included######
+
+'''
+########OLD VERSION FULL OF BUGS########
 def sentence_vector_wr(embedded_sentence, prob, sentence_size, parameter_a):
 	sentence_vec = np.zeros(embedding_size)
   for i in range(sentence_size):
     word_vec_ranked = (parameter_a / (parameter_a + prob[i+1])) * embedded_sentence[i]
 		sentence_vec += word_vec_ranked
   sentence_vec = sentence_vec / sentence_size
+  return sentence_vec
+'''
+def sentence_vector_wr_vectorize(answers, embedder, answers_prob, answers_length, a)
+  #answers_prob shape: (N,W)
+  #embedded_answers shape: (N,W,D)
+  embedded_answers = embedder(answers)
+  N, W, D = embedded_answers.shape
+  answers_prob = answers_prob.reshape((N,W,1))
+  #doing wr
+  embedded_answers = (a/(a+answers_prob))*embedded_answers #shape: (N,W,D)
+  #here we also count <SOS>,<EOS>,<UNK> in calculation of wr
+  sentence_vec = np.mean(embedded_answers, axis = 1)
   return sentence_vec
   
 ######DONT KNOW HOW TO COMPUTE PCA######

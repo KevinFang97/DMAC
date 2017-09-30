@@ -56,9 +56,9 @@ def cluster_train_vectorize(answers, embedder, answers_length, prob_dict, num_cl
   
   #sentence_vec shape: (Number_of_answers,embedding_size)
   #doing wr
-  sentence_vec = sentence_vec_wr_vectorized(embedder, answers_prob, answers_length, parameter_a)
+  sentence_vec = sentence_vec_wr_vectorize(answers, embedder, answers_prob, answers_length, parameter_a)
   #doing PCA
-  sentence_vec = sentence_vector_pca_vectorized(sentence_vec)
+  sentence_vec = sentence_vector_pca_vectorize(sentence_vec)
     
   #clustering using answer_vec, use k-means
 	kmeans = kMeans(n_clusters=num_cluster, n_jobs=-1).fit(sentence_vec)	
