@@ -1,4 +1,3 @@
-#note:sentence_size here does not include <SOS> or <EOS>
 import numpy as np
 import torch
 import torch.nn as nn
@@ -45,7 +44,7 @@ def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster, par
 '''
 
 def cluster_train_vectorize(answers, embedder, answers_length, prob_dict, num_cluster, parameter_a):
-  #answers shape: (Number_of_answers, N_of_words_in_a_sentence)
+  #answers shape: (Number_of_answers, sentence_size)
   #answers_length shape: (Number_of_answers, )
   N,W = answers.shape
 	answers_prob = np.zeros((answers.shape)) #the list of sentence vectors of answers
@@ -81,32 +80,57 @@ def cluster_train_vectorize(answers, embedder, answers_length, prob_dict, num_cl
 
 def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder, decoder, classifier_optimizer, embedder_optimizer, encoder_optimizer, decoder_optimizer):
 	'''
-    Train one instance
-    '''
+  Train one instance
+  '''
 
 	#zero-grad for optimizers 
 	classifier_optimizer.zero_grad()
-    embedder_optimizer.zero_grad()
-    encoder_optimizer.zero_grad()
-    decoder_optimizer.zero_grad()
+  embedder_optimizer.zero_grad()
+  encoder_optimizer.zero_grad()
+  decoder_optimizer.zero_grad()
 
 	batch_size = len(q_batch)
 
+  #a shape, q shape: (batch_size, sentence_size)
 	q = Variable(q_batch)
 	q = q.cuda() if use_cuda else q
 	a = Variable(a_batch)
 	a = a.cuda() if use_cuda else a
 
-	#embed q
+	#embed q, q_emb shape: (batch_size, sentence_size, embedding_size)
 	q_emb = embedder(q)
 	#encode q
-    _, q_enc = encoder(q_emb) #q_enc size: TO BE ADDED
+  _, q_enc = encoder(q_emb) #q_enc shape: (batch_size, hidden_size)
 	#cluster a
-	loss_clu, a_clu = classifier(a, a_lens) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
+	loss_clu, a_clu = classifier(a) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
 
-	qnc = torch.cat([q_enc,a_clu],1) #HOW DOES IT LOOK LIKE AFTER CAT??? NEED EXPERIMENT!!! WHAT AXIS?？？
-	#lets assume last line is correct
+  decoder_input = Variable(torch.LongTensor([[SOS_token]*batch_size]).view(batch_size,1))
+  decoder_input = decoder_input.cuda() if use_cuda else decoder_input # [batch_sz x 1] (1=seq_len)
+  decoder_hidden = torch.cat([q_enc,a_clu],1).unsqueeze(0) # [1 x batch_sz x hid_sz] (1=n_layers)
+  use_teach_force = True if random.random() < p_teach_force else False
+  out=None
+	for di in range(a.size(1)):
+    #decoder_output: [batch_sz x voca_sz]
+    decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
+    
+    '''I think things can be optimized here by initially allocate not cat every time'''
+    if di==0: # first step
+      out = decoder_output
+    else:
+      out = torch.cat([out, decoder_output],1)
 
-	decoder_input = qnc #NEED MODIFIED
-
-	#dont know how to write decoder in pytorch yet, TBC
+    #TO-DO: revise here, cuz our input need to be one-hot vec, since output is only softmaxed, we need to
+    #       1)predicted
+    #       2)compute loss
+    if use_teach_force:# Teacher forcing: Feed the target as the next input
+      decoder_input = a[:,di].unsqueeze(1)  # Teacher forcing
+            #print("decoder_input_sz_1:")
+            #print(decoder_input.size())
+    else: # Without teacher forcing: use its own predictions as the next input
+      topi = decoder_output[:,-1].max(1)[1] # topi:[batch_sz x 1] indexes of predicted words
+      decoder_input = topi#Variable(torch.LongTensor(ni))
+            #ni = topi.cpu().numpy().squeeze().tolist() #!!
+            #if ni == EOS_token:
+            #    break
+    decoder_input=embedder(decoder_input)
+    #print(out)
