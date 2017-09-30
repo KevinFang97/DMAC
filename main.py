@@ -17,10 +17,11 @@ MAX_SEQ_LEN = 20
 
 #-------------Cluster Training------------#
 
+'''
+############OLD VERSION FULL OF BUGS##############
 #probability dict should be calculated while generating word dict
 #here the input of embedder is a sentence(int value,  padded), of course we need to make all embedder the SAME one
-def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster):
-	a = 1 #the Parameter in wr calculation, value TO BE DECIDED
+def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster, parameter_a):
 	answers_vec = [] #the list of sentence vectors of answers
 	
 	#doing wr+PCA
@@ -36,12 +37,38 @@ def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster):
 	sentence_vector_pca(answers_vec)
 
 	#clustering using answer_vec, use k-means
-	kmeans = kMeans(n_clusters=num_cluster, n_jobs=-1)
+	kmeans = KMeans(n_clusters=num_cluster, n_jobs=-1)
 	centers = kmeans.cluster_centers_ #shape: [num_cluster, embedding_size]
 	
 	#return the kmean center
 	return centers
-	
+'''
+
+def cluster_train_vectorize(answers, embedder, answers_length, prob_dict, num_cluster, parameter_a):
+  #answers shape: (Number_of_answers, N_of_words_in_a_sentence)
+  #answers_length shape: (Number_of_answers, )
+  N,W = answers.shape
+	answers_prob = np.zeros((answers.shape)) #the list of sentence vectors of answers
+  
+  #translate answers in to its prob
+  for word in prob_dict:
+    answers_prob[answer == word] = prob_dict[word] 
+  
+  #sentence_vec shape: (Number_of_answers,embedding_size)
+  #doing wr
+  sentence_vec = sentence_vec_wr_vectorized(embedder, answers_prob, answers_length, parameter_a)
+  #doing PCA
+  sentence_vec = sentence_vector_pca_vectorized(sentence_vec)
+    
+  #clustering using answer_vec, use k-means
+	kmeans = kMeans(n_clusters=num_cluster, n_jobs=-1).fit(sentence_vec)	
+	#return the kmean center and labels
+  #center shape: (num_cluster, embedding_size)
+  #label shape: (Number_of_answers, )
+	return kmeans.cluster_centers_, kmeans.labels_
+  
+  
+  
 #-------------End of Cluster Training-----------#
 
 
