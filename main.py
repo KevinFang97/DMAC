@@ -79,7 +79,7 @@ def cluster_train_vectorize(answers, embedder, answers_length, prob_dict, num_cl
 #2.Decoder
 #...... =.= seems no more
 
-def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder, decoder, classifier_optimizer, embedder_optimizer, encoder_optimizer, decoder_optimizer, voca_size):
+def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder, decoder, classifier_optimizer, embedder_optimizer, encoder_optimizer, decoder_optimizer, voca_size, clu_loss_reg):
 	'''
   Train one instance
   '''
@@ -104,17 +104,17 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder,
 	#encode q
   _, q_enc = encoder(q_emb) #q_enc shape: (batch_size, encoder_hidden_size)
 	#cluster a
-	loss_clu, a_clu = classifier(a) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
+	clu_loss, a_clu = classifier(a) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
   
   decoder_input = np.full((batch_size,1), SOS_token)
-  decoder_input = one_hot(decoder_input)
   decoder_input = Variable(torch.from_numpy(decoder_input))
+  decoder_input = one_hot(decoder_input,voca_size)
   decoder_input = decoder_input.cuda() if use_cuda else decoder_input # [batch_sz x voca_size]
   #decoder_hidden shape: [1 x batch_sz x decoder_hidden_size] (1=n_layers) 
   #decoder_hidden_size = encoder_hidden_size + num_cluster
   decoder_hidden = torch.cat([q_enc,a_clu],1).unsqueeze(0) 
   use_teach_force = True if random.random() < p_teach_force else False
-  out = Variable(torch.from_numpy(np.zeros((batch_size,answer_size))))
+  predict = Variable(torch.from_numpy(np.zeros((batch_size,answer_size))))
   decoder_loss = 0
   #decoding process
 	for di in range(answer_size):
@@ -122,7 +122,7 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder,
     decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
     #should be rewrite in to pytorch instead of nunmpy
     decode_label = np.argmax(decoder_output, axis=1) #shape: (batch_size,)
-    out[:,di] = decode_label
+    predict[:,di] = decode_label
     decoder_loss += -np.mean(np.log(soft_y[xrange(batch_size),decode_label]))
     #TO-DO: revise here, cuz our input need to be one-hot vec, since output is only softmaxed, we need to
     #       1)predicted
@@ -132,14 +132,23 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder,
     #Using teacher forcing causes it to converge faster 
     #but when the trained network is exploited, it may exhibit instability.
     if use_teach_force:
-      decoder_input = a[:,di].unsqueeze(1)  # Teacher forcing
-            #print("decoder_input_sz_1:")
-            #print(decoder_input.size())
+      decoder_input = a[:,di].unsqueeze(1) #size: [batch_size,]
+      decoder_input = one_hot(decoder_input,voca_size) #size: [batch_size,voca_size]
+      
     else:
-      topi = decoder_output[:,-1].max(1)[1] # topi:[batch_sz x 1] indexes of predicted words
-      decoder_input = topi#Variable(torch.LongTensor(ni))
-            #ni = topi.cpu().numpy().squeeze().tolist() #!!
-            #if ni == EOS_token:
-            #    break
-    decoder_input=embedder(decoder_input)
-    #print(out)
+      decoder_input = one_hot(decode_label,voca_size) #size: [batch_size, voca_size]
+  
+  loss = decoder_loss + clu_loss_reg*clu_loss
+  loss.backward()
+    
+  embedder_optimizer.step()
+  encoder_optimizer.step()
+  decoder_optimizer.step()
+	classifier_optimizer.step()
+
+  #return type need to be modified
+  return loss.data[0], kl_loss.data[0], decoder_loss.data[0]
+  
+def train(embedder, encoder, hidvar, decoder, data_loader, vocab, n_iters, p_teach_force=0.5, model_dir,
+          save_every=5000, sample_every=100, print_every=10, plot_every=100, learning_rate=0.00005):
+  

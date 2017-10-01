@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt #using PCA here
 import numpy as np
 
 #d1vec is a 1 dim vec i.e. (batch_size,)
+#should be rewrite so that d1vec is Variable
 def one_hot(d1vec,voca_size):
   batch_size = d1vec.shape[0]
   temp = np.zeros((batch_size,voca_size))
