@@ -25,7 +25,7 @@ def sentence_vector_wr(embedded_sentence, prob, sentence_size, parameter_a):
   sentence_vec = sentence_vec / sentence_size
   return sentence_vec
 '''
-def sentence_vector_wr_vectorize(answers, embedder, answers_prob, answers_length, a)
+def sentence_vector_wr_vectorize(answers, embedder, answers_prob, answers_length, a):
   #answers_prob shape: (N,W)
   #embedded_answers shape: (N,W,D)
   embedded_answers = embedder(answers)
@@ -49,5 +49,8 @@ def sentence_vector_pca(sentence_vector_list):
   sentence_vector_array = sentence_vector_array * (1 - uut)
   return sentence_vector_array
 
+'''
 def cluster_pred(answer, cluster_center, num_cluster):
   #answer size: (batch_size, max_length)
+
+'''
