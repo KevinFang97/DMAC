@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 from sklearn.cluster import KMeans
 
 
@@ -78,7 +79,7 @@ def cluster_train_vectorize(answers, embedder, answers_length, prob_dict, num_cl
 #2.Decoder
 #...... =.= seems no more
 
-def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder, decoder, classifier_optimizer, embedder_optimizer, encoder_optimizer, decoder_optimizer):
+def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder, decoder, classifier_optimizer, embedder_optimizer, encoder_optimizer, decoder_optimizer, voca_size):
 	'''
   Train one instance
   '''
@@ -90,6 +91,7 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder,
   decoder_optimizer.zero_grad()
 
 	batch_size = len(q_batch)
+  answer_size = a.size(1) #num of words in an answer, incase size of q and a are not the same
 
   #a shape, q shape: (batch_size, sentence_size)
 	q = Variable(q_batch)
@@ -100,33 +102,40 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder, encoder,
 	#embed q, q_emb shape: (batch_size, sentence_size, embedding_size)
 	q_emb = embedder(q)
 	#encode q
-  _, q_enc = encoder(q_emb) #q_enc shape: (batch_size, hidden_size)
+  _, q_enc = encoder(q_emb) #q_enc shape: (batch_size, encoder_hidden_size)
 	#cluster a
 	loss_clu, a_clu = classifier(a) #a_clu size: (batch_size, num_cluster), each cluster vec is like (0.12,0.67,0.21) where each number represents the prob in this cluster
-
-  decoder_input = Variable(torch.LongTensor([[SOS_token]*batch_size]).view(batch_size,1))
-  decoder_input = decoder_input.cuda() if use_cuda else decoder_input # [batch_sz x 1] (1=seq_len)
-  decoder_hidden = torch.cat([q_enc,a_clu],1).unsqueeze(0) # [1 x batch_sz x hid_sz] (1=n_layers)
+  
+  decoder_input = np.full((batch_size,1), SOS_token)
+  decoder_input = one_hot(decoder_input)
+  decoder_input = Variable(torch.from_numpy(decoder_input))
+  decoder_input = decoder_input.cuda() if use_cuda else decoder_input # [batch_sz x voca_size]
+  #decoder_hidden shape: [1 x batch_sz x decoder_hidden_size] (1=n_layers) 
+  #decoder_hidden_size = encoder_hidden_size + num_cluster
+  decoder_hidden = torch.cat([q_enc,a_clu],1).unsqueeze(0) 
   use_teach_force = True if random.random() < p_teach_force else False
-  out=None
-	for di in range(a.size(1)):
+  out = Variable(torch.from_numpy(np.zeros((batch_size,answer_size))))
+  decoder_loss = 0
+  #decoding process
+	for di in range(answer_size):
     #decoder_output: [batch_sz x voca_sz]
     decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden)
-    
-    '''I think things can be optimized here by initially allocate not cat every time'''
-    if di==0: # first step
-      out = decoder_output
-    else:
-      out = torch.cat([out, decoder_output],1)
-
+    #should be rewrite in to pytorch instead of nunmpy
+    decode_label = np.argmax(decoder_output, axis=1) #shape: (batch_size,)
+    out[:,di] = decode_label
+    decoder_loss += -np.mean(np.log(soft_y[xrange(batch_size),decode_label]))
     #TO-DO: revise here, cuz our input need to be one-hot vec, since output is only softmaxed, we need to
     #       1)predicted
     #       2)compute loss
-    if use_teach_force:# Teacher forcing: Feed the target as the next input
+    #“Teacher forcing” is the concept of using the real target outputs as each next input, 
+    #instead of using the decoder’s guess as the next input. 
+    #Using teacher forcing causes it to converge faster 
+    #but when the trained network is exploited, it may exhibit instability.
+    if use_teach_force:
       decoder_input = a[:,di].unsqueeze(1)  # Teacher forcing
             #print("decoder_input_sz_1:")
             #print(decoder_input.size())
-    else: # Without teacher forcing: use its own predictions as the next input
+    else:
       topi = decoder_output[:,-1].max(1)[1] # topi:[batch_sz x 1] indexes of predicted words
       decoder_input = topi#Variable(torch.LongTensor(ni))
             #ni = topi.cpu().numpy().squeeze().tolist() #!!

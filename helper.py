@@ -2,6 +2,14 @@
 import matplotlib.pyplot as plt #using PCA here
 import numpy as np
 
+#d1vec is a 1 dim vec i.e. (batch_size,)
+def one_hot(d1vec,voca_size):
+  batch_size = d1vec.shape[0]
+  temp = np.zeros((batch_size,voca_size))
+  temp[xrange(batch_size), d1vec] = 1
+  return temp
+
+
 #wr step for computing sentence vector
 #ref page4 of paper about WR+PCA
 #probability is a list of probabilities of words in sentence
