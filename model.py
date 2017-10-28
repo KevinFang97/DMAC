@@ -13,7 +13,7 @@ import torch.nn.functional as F
 #    self.num_of_cluster = num_of_cluster
 #    self.fc1 = nn.Linear(embedding_size, embedding_size/2)
 #    self.fc2 = nn.Linear(embedding_size/2, num_of_cluster)
-#    
+#
 #  def forward(self, input):
 #    input = F.relu(self.fc1(input))
 #    input = F.softmax(self.fc2(input))
@@ -22,20 +22,21 @@ import torch.nn.functional as F
 ###answer prediction###
 
 
-
 ##########Encoder & Decoder##############
 #encode a batch of sentence input: input shape: (batch_size, sentence_size, embedding_size)
 class Encoder(nn.Module):
   def __init__(self, input_size, hidden_size, n_layers=1):
     super(Encoder, self).__init__()
-    self.n_layers = n_layers
+    # self.n_layers = n_layers
     self.hidden_size = hidden_size
-    self.gru = nn.GRU(input_size, hidden_size, dropout=0.2, batch_first=True)
+    self.gru = nn.GRU(input_size, hidden_size, n_layers, dropout=0.2, batch_first=True)
 
   def forward(self, input, hidden):
-    output = input
+    '''
     for i in range(self.n_layers):
       output, hidden = self.gru(output, hidden)
+    '''
+    output, hidden = self.gru(input, hidden)
     return output, hidden
 
   def initHidden(self):
@@ -50,6 +51,8 @@ class Encoder(nn.Module):
 #input hidden: (batch_size, hidden_size) (prev output hidden)
 #output a batch: (batch_size, voca_size) (softmaxed)
 #output hidden: (batch_size, hidden_size)
+
+
 class Decoder(nn.Module):
   def __init__(self, batch_size, hidden_size, voca_size, n_layers=1):
     super(Decoder, self).__init__()
@@ -58,8 +61,8 @@ class Decoder(nn.Module):
     self.batch_size = batch_size
     self.embedding = nn.Embedding(voca_size, hidden_size)
     self.gru = nn.GRU(hidden_size, voca_size, dropout=0.2, batch_first=True)
-    for w in self.gru.parameters(): # initialize the gate weights with orthogonal
-      if w.dim()>1:
+    for w in self.gru.parameters():  # initialize the gate weights with orthogonal
+      if w.dim() > 1:
         weight_init.orthogonal(w)
     self.out = nn.Linear(hidden_size, output_size)
     self.softmax = nn.LogSoftmax()
@@ -69,7 +72,8 @@ class Decoder(nn.Module):
     for i in range(self.n_layers):
       output = F.relu(output)
       output, hidden = self.gru(output, hidden)
-    output = self.softmax(self.out(output[0])) #output[0] shape: (batch_size, hidden_size)
+    # output[0] shape: (batch_size, hidden_size)
+    output = self.softmax(self.out(output[0]))
     #output shape: (batch_size, voca_size)
     return output, hidden
 
@@ -82,6 +86,9 @@ class Decoder(nn.Module):
 
 ##########Encoder & Decoder##############
 #
+
+
+'''
 class Classifier(nn.Module):
   def __init__(self, cluster_centers, num_of_cluster):
     super(Classifier, self).__init__()
@@ -93,4 +100,4 @@ class Classifier(nn.Module):
     #cluster_centers size: (num_cluster, embedding_size)
     #result size: (batch_size, num_cluster)
     #using loop which is more readable, less error prone, maybe matrix operation method will be addded
-    
+'''

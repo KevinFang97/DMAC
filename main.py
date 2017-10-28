@@ -1,3 +1,5 @@
+import json
+import string
 import numpy as np
 import torch
 import torch.nn as nn
@@ -168,13 +170,44 @@ def train(embedder, encoder, hidvar, decoder, data_loader, vocab, n_iters, p_tea
 '''
 
 
-if __name__ == 'main':
+if __name__ == '__main__':
 
-    n_words = 300000
+
+    n_words = 300003
+    # n_words = 20 # for testing
     embedded_size = 256
     rnn_size = 1024
+    
+    test_dict = json.loads(open("data/dictionary.json", "r").readline())
+    test_dict = dict(zip(test_dict.values(), test_dict.keys()))
 
-    embedder = nn.Embedding(n_words, embedded_size, padding_idx=EOS_TOKEN)
+    test_ans_file = open("data/valid.txt", "r")
+    test_ans = []
+    ans_samples = []
+    max_ans_length = 0
+    for _ in range(30):
+        ans_samples.append(test_ans_file.readline())
+        ans_samples[-1] = ans_samples[-1].translate(string.maketrans("", ""), string.punctuation)
+        ans_samples[-1] = ans_samples[-1].strip("\r\n").split("\t")
+        max_ans_length = max(max_ans_length, len(ans_samples[-1][1]))
+
+
+    for i in range(30):
+        test_ans.append([])
+        ans_line = ans_samples[i]
+        j = 0
+        for word in ans_line[1]:
+            try:
+                test_ans[-1].append(int(test_dict[word]))
+            except:
+                test_ans[-1].append(int(test_dict["UNK"]))
+            j += 1
+        if j < max_ans_length:
+            for j in range(j, max_ans_length):
+                test_ans[-1].append(int(test_dict["UNK"]))
+    test_ans = Variable(torch.LongTensor(test_ans))
+    
+    embedder = nn.Embedding(n_words, embedded_size, padding_idx=EOS_token)
+    embedded_test_ans = embedder(test_ans)
     encoder = Encoder(embedded_size, rnn_size)
     #for testing
-    test_question = 'how are you'

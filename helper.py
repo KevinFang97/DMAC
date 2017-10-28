@@ -34,10 +34,11 @@ def sentence_vector_wr_vectorize(answers, embedder, answers_prob, answers_length
   #doing wr
   embedded_answers = (a/(a+answers_prob))*embedded_answers #shape: (N,W,D)
   #here we also count <SOS>,<EOS>,<UNK> in calculation of wr
-  sentence_vec = np.mean(embedded_answers, axis = 1)
+  sentence_vec = np.mean(embedded_answers, axis = 1) #### Here not strictly follow the original paper
   return sentence_vec
   
 ######DONT KNOW HOW TO COMPUTE PCA######
+'''
 def sentence_vector_pca(sentence_vector_list):
   list_length = len(sentence_vector_list)
   sentence_vector_array = torch.FloatTensor(sentence_vector_list)
@@ -48,6 +49,16 @@ def sentence_vector_pca(sentence_vector_list):
   uut = torch.matmul(u.T, u)
   sentence_vector_array = sentence_vector_array * (1 - uut)
   return sentence_vector_array
+'''
+def sentence_vector_pca_vectorize(sentence_vec):
+  sigma = torch.matmul(torch.t(sentence_vec), sentence_vec)
+  print(sigma.size()) # for debugging
+  sigma /= sigma.size()[0]
+  u, _, _ = torch.svd(sigma)
+  u = u[:, 0]
+  uutv = torch.matmul(torch.matmul(torch.t(u), u), sentence_vec)
+  return sentence_vec - uutv
+
 
 '''
 def cluster_pred(answer, cluster_center, num_cluster):
