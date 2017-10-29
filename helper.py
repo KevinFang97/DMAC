@@ -25,14 +25,16 @@ def sentence_vector_wr_pca(answers, embedder, answers_prob, answers_length, a):
   if torch.cuda.is_available():
     embedded_answers = embedded_answers.cuda()
     answers_prob = answers_prob.cuda()
-  N, W, D = embedded_answers.size()
+  N, W, _ = embedded_answers.size()
   answers_prob = answers_prob.view([N, W, 1])
   #doing wr
   embedded_answers = (a / (a + answers_prob)) * embedded_answers #shape: (N,W,D)
   #here we also count <SOS>,<EOS>,<UNK> in calculation of wr
   sentence_vec = torch.mean(embedded_answers, dim=1) #### Here not strictly follow the original paper
+  # print(sentence_vec[0,0])
+  # print(sentence_vec[0,1])
   #Now do pca
-  sentence_vec_norm = sentence_vec - torch.mean(sentence_vec, 0)
+  sentence_vec_norm = sentence_vec - torch.mean(sentence_vec, 1, keepdim=True)
   sigma = torch.matmul(sentence_vec_norm, torch.t(sentence_vec_norm))
   sigma /= sentence_vec_norm.size()[1]
   u, _, _ = torch.svd(sigma.data)
