@@ -8,7 +8,7 @@ from sklearn.cluster import KMeans
 from helper import *
 from model import *
 
-use_cuda = torch.cuda.is_available
+use_cuda = torch.cuda.is_available()
 
 SOS_token = 1
 EOS_token = 0
@@ -172,7 +172,6 @@ def train(embedder, encoder, hidvar, decoder, data_loader, vocab, n_iters, p_tea
 
 if __name__ == '__main__':
 
-
     n_words = 300003
     # n_words = 20 # for testing
     embedded_size = 256
@@ -213,6 +212,14 @@ if __name__ == '__main__':
     test_ans_prob = Variable(torch.FloatTensor(test_ans_prob))
     
     embedder = nn.Embedding(n_words, embedded_size, padding_idx=EOS_token)
-    sent_vec = sentence_vector_wr_vectorize(test_ans, embedder, test_ans_prob, max_ans_length, 1e-4) 
+    sent_vec = sentence_vector_wr_pca(test_ans, embedder, test_ans_prob, max_ans_length, 1e-4) 
+
+    
+    km = KMeans()
+    if (use_cuda):
+        km.fit(sent_vec.cpu().data.numpy())
+    else:
+        km.fit(sent_vec.data.numpy())
+    print(km.labels_)
     encoder = Encoder(embedded_size, rnn_size)
     #for testing

@@ -2,6 +2,7 @@
 import matplotlib.pyplot as plt #using PCA here
 import numpy as np
 import torch
+from torch.autograd import Variable
 
 
 #d1vec is a 1 dim vec i.e. (batch_size,)
@@ -17,54 +18,24 @@ def one_hot(d1vec,voca_size):
 #ref page4 of paper about WR+PCA
 #probability is a list of probabilities of words in sentence
 
-'''
-########OLD VERSION FULL OF BUGS########
-def sentence_vector_wr(embedded_sentence, prob, sentence_size, parameter_a):
-	sentence_vec = np.zeros(embedding_size)
-  for i in range(sentence_size):
-    word_vec_ranked = (parameter_a / (parameter_a + prob[i+1])) * embedded_sentence[i]
-		sentence_vec += word_vec_ranked
-  sentence_vec = sentence_vec / sentence_size
-  return sentence_vec
-'''
-def sentence_vector_wr_vectorize(answers, embedder, answers_prob, answers_length, a):
-  #answers_prob shape: (N,W)
-  #embedded_answers shape: (N,W,D)
+#answers_prob shape: (N,W)
+#embedded_answers shape: (N,W,D)
+def sentence_vector_wr_pca(answers, embedder, answers_prob, answers_length, a):
   embedded_answers = embedder(answers)
+  if torch.cuda.is_available():
+    embedded_answers = embedded_answers.cuda()
+    answers_prob = answers_prob.cuda()
   N, W, D = embedded_answers.size()
-  # answers_prob = answers_prob.reshape((N,W,1))
   answers_prob = answers_prob.view([N, W, 1])
   #doing wr
-  embedded_answers = (a/(a+answers_prob))*embedded_answers #shape: (N,W,D)
+  embedded_answers = (a / (a + answers_prob)) * embedded_answers #shape: (N,W,D)
   #here we also count <SOS>,<EOS>,<UNK> in calculation of wr
   sentence_vec = torch.mean(embedded_answers, dim=1) #### Here not strictly follow the original paper
-  return sentence_vec
-  
-######DONT KNOW HOW TO COMPUTE PCA######
-'''
-def sentence_vector_pca(sentence_vector_list):
-  list_length = len(sentence_vector_list)
-  sentence_vector_array = torch.FloatTensor(sentence_vector_list)
-  sigma = torch.matmul(torch.transpose(sentence_vector_array, 1, 0), sentence_vector_array)
-  sigma = sigma / list_length
-  u, _, _ = torch.svd(sigma)
-  u = u[:, 0]
-  uut = torch.matmul(u.T, u)
-  sentence_vector_array = sentence_vector_array * (1 - uut)
-  return sentence_vector_array
-'''
-def sentence_vector_pca_vectorize(sentence_vec):
-  sigma = torch.matmul(torch.t(sentence_vec), sentence_vec)
-  print(sigma.size()) # for debugging
-  sigma /= sigma.size()[0]
-  u, _, _ = torch.svd(sigma)
-  u = u[:, 0]
-  uutv = torch.matmul(torch.matmul(torch.t(u), u), sentence_vec)
+  #Now do pca
+  sentence_vec_norm = sentence_vec - torch.mean(sentence_vec, 0)
+  sigma = torch.matmul(sentence_vec_norm, torch.t(sentence_vec_norm))
+  sigma /= sentence_vec_norm.size()[1]
+  u, _, _ = torch.svd(sigma.data)
+  u = Variable(torch.unsqueeze(u[:, 0], 0))
+  uutv = torch.matmul(torch.t(u).mm(u), sentence_vec)
   return sentence_vec - uutv
-
-
-'''
-def cluster_pred(answer, cluster_center, num_cluster):
-  #answer size: (batch_size, max_length)
-
-'''
