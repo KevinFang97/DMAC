@@ -16,38 +16,6 @@ UNK_token = 2
 
 MAX_SEQ_LEN = 20
 
-#use list represent list, np.array represent normal vector, pytorch.Variable represent vector/tensor in NN
-
-#-------------Cluster Training------------#
-'''
-############OLD VERSION FULL OF BUGS##############
-#probability dict should be calculated while generating word dict
-#here the input of embedder is a sentence(int value,  padded), of course we need to make all embedder the SAME one
-def cluster_train(answers, embedder, answers_length, prob_dict, num_cluster, parameter_a):
-  answers_vec = [] #the list of sentence vectors of answers
-
-  #doing wr+PCA
-  #wr
-  for i in range(answers):
-    prob = [] #prob of words in this sentence
-    for j in range(len(answers[i])):
-      word_prob = prob_dict[answers[i][j+1]] #the ith sentence, j+1th word in it
-      prob.append(word_prob) #finish retrieving the prob of word in this sentence
-    sentence_vec_wr = sentence_vector_wr(embedder(
-        answers[i]), prob, answers_length[i], a) #wr is the sentence_vec (not PCAed yet)
-    answers_vec.append(sentence_vec_wr)
-  #doing PCA for all sentence_vec of answers
-  sentence_vector_pca(answers_vec)
-
-  #clustering using answer_vec, use k-means
-  kmeans = KMeans(n_clusters=num_cluster, n_jobs=-1)
-  centers = kmeans.cluster_centers_ #shape: [num_cluster, embedding_size]
-
-  #return the kmean center
-  return centers
-'''
-
-
 def cluster_train_vectorize(answers, embedder, answers_length, prob_dict,
                             num_cluster, parameter_a):
     #answers shape: (Number_of_answers, sentence_size)
@@ -164,10 +132,6 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder,
 
     #return type need to be modified
     return loss.data[0], kl_loss.data[0], decoder_loss.data[0]
-    '''
-def train(embedder, encoder, hidvar, decoder, data_loader, vocab, n_iters, p_teach_force=0.5, model_dir,
-          save_every=5000, sample_every=100, print_every=10, plot_every=100, learning_rate=0.00005):
-'''
 
 
 if __name__ == '__main__':
@@ -210,16 +174,21 @@ if __name__ == '__main__':
                 test_ans_prob[-1].append(float(test_prob_dict["UNK"]))
     test_ans = Variable(torch.LongTensor(test_ans))
     test_ans_prob = Variable(torch.FloatTensor(test_ans_prob))
-    
     embedder = nn.Embedding(n_words, embedded_size, padding_idx=EOS_token)
-    sent_vec = sentence_vector_wr_pca(test_ans, embedder, test_ans_prob, max_ans_length, 1e-4) 
-
+    embedded_answers = embedder(test_ans)
+    if (use_cuda):
+        embedded_answers = embedded_answers.cuda()
+        test_ans_prob = test_ans_prob.cuda()
+    sent_vec = sentence_vector_wr_pca(embedded_answers, test_ans_prob, max_ans_length, 1e-4) 
     
+    '''
     km = KMeans()
     if (use_cuda):
         km.fit(sent_vec.cpu().data.numpy())
     else:
         km.fit(sent_vec.data.numpy())
     print(km.labels_)
+    '''
     encoder = Encoder(embedded_size, rnn_size)
+    output, hidden = encoder.forward(embedded_answers)
     #for testing

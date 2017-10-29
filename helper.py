@@ -20,11 +20,7 @@ def one_hot(d1vec,voca_size):
 
 #answers_prob shape: (N,W)
 #embedded_answers shape: (N,W,D)
-def sentence_vector_wr_pca(answers, embedder, answers_prob, answers_length, a):
-  embedded_answers = embedder(answers)
-  if torch.cuda.is_available():
-    embedded_answers = embedded_answers.cuda()
-    answers_prob = answers_prob.cuda()
+def sentence_vector_wr_pca(embedded_answers, answers_prob, answers_length, a):
   N, W, _ = embedded_answers.size()
   answers_prob = answers_prob.view([N, W, 1])
   #doing wr

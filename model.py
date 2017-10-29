@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 ###class(cluster) prediction###
 #now using kmeans but NN
@@ -25,26 +26,23 @@ import torch.nn.functional as F
 ##########Encoder & Decoder##############
 #encode a batch of sentence input: input shape: (batch_size, sentence_size, embedding_size)
 class Encoder(nn.Module):
-  def __init__(self, input_size, hidden_size, n_layers=1):
+  def __init__(self, input_size, hidden_size, n_layers=1, use_cuda=torch.cuda.is_available()):
     super(Encoder, self).__init__()
     # self.n_layers = n_layers
     self.hidden_size = hidden_size
+    self.use_cuda = use_cuda
     self.gru = nn.GRU(input_size, hidden_size, n_layers, dropout=0.2, batch_first=True)
+    if (use_cuda):
+      self.gru = self.gru.cuda()
 
-  def forward(self, input, hidden):
-    '''
-    for i in range(self.n_layers):
-      output, hidden = self.gru(output, hidden)
-    '''
+  def forward(self, input, hidden=None):
+    if hidden is None:
+      hidden = Variable(torch.randn(1, input.size()[0], self.hidden_size))
+      if (self.use_cuda):
+        hidden = hidden.cuda()
     output, hidden = self.gru(input, hidden)
     return output, hidden
 
-  def initHidden(self):
-    result = Variable(torch.zeros(1, 1, self.hidden_size))
-    if use_cuda:
-      return result.cuda()
-    else:
-      return result
 
 #decode a sentence using hidden as given and input as <SOS>
 #input a batch: (batch_size, voca_size) (one-hot)
