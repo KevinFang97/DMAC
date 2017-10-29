@@ -178,11 +178,13 @@ if __name__ == '__main__':
     embedded_size = 256
     rnn_size = 1024
     
-    test_dict = json.loads(open("data/dictionary.json", "r").readline())
-    test_dict = dict(zip(test_dict.values(), test_dict.keys()))
+    test_dict = json.loads(open("data/vocab.json", "r").readline())
+    # test_dict = dict(zip(test_dict.values(), test_dict.keys()))
+    test_prob_dict = json.loads(open("data/vocab_prob.json", "r").readline())
 
     test_ans_file = open("data/valid.txt", "r")
     test_ans = []
+    test_ans_prob = []
     ans_samples = []
     max_ans_length = 0
     for _ in range(30):
@@ -190,24 +192,27 @@ if __name__ == '__main__':
         ans_samples[-1] = ans_samples[-1].translate(string.maketrans("", ""), string.punctuation)
         ans_samples[-1] = ans_samples[-1].strip("\r\n").split("\t")
         max_ans_length = max(max_ans_length, len(ans_samples[-1][1]))
-
-
     for i in range(30):
         test_ans.append([])
+        test_ans_prob.append([])
         ans_line = ans_samples[i]
         j = 0
         for word in ans_line[1]:
             try:
                 test_ans[-1].append(int(test_dict[word]))
+                test_ans_prob[-1].append(float(test_prob_dict[word]))
             except:
                 test_ans[-1].append(int(test_dict["UNK"]))
+                test_ans_prob[-1].append(float(test_prob_dict["UNK"]))
             j += 1
         if j < max_ans_length:
             for j in range(j, max_ans_length):
                 test_ans[-1].append(int(test_dict["UNK"]))
+                test_ans_prob[-1].append(float(test_prob_dict["UNK"]))
     test_ans = Variable(torch.LongTensor(test_ans))
+    test_ans_prob = Variable(torch.FloatTensor(test_ans_prob))
     
     embedder = nn.Embedding(n_words, embedded_size, padding_idx=EOS_token)
-    embedded_test_ans = embedder(test_ans)
+    sent_vec = sentence_vector_wr_vectorize(test_ans, embedder, test_ans_prob, max_ans_length, 1e-4) 
     encoder = Encoder(embedded_size, rnn_size)
     #for testing

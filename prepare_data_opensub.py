@@ -56,12 +56,14 @@ def create_dict(train_file, vocab_size):
     file.close()
 
     dict = {'UNK': 2, '<SOS>':1, '<EOS>': 0}
+    prob_dict = {'UNK': 1.0/vocab_size, '<SOS>':1.0/vocab_size, '<EOS>': 1.0/vocab_size}
     count=counter.most_common(vocab_size - 3)  # minus 1 for UNK
-    for word, _ in count:
+    for word, freq in count:
         if word=='':
             continue
         dict[word] = len(dict)
-    return dict
+        prob_dict[word] = float(freq) / vocab_size
+    return dict, prob_dict
     
 
 def binarize(load_path, save_path, vocab):
@@ -145,21 +147,26 @@ if __name__ == "__main__":
     valid_file_out = data_path+"valid.h5"
     # int -> word dict
     dict_path = data_path+"vocab.json"
+    prob_dict_path = data_path+"vocab_prob.json"
     # how many words should be added into dict
     vocab_size = 30000
     # larger batch size speeds up the process but needs larger memory
     process_batch_size = 3000000
     
     print ("creating dictionary...")
-    vocab=create_dict(train_file_in, vocab_size)
+    # vocab, prob_dict =create_dict(train_file_in, vocab_size)
+    ###For test
+    vocab, prob_dict =create_dict(valid_file_in, vocab_size)
     dict_file = open(dict_path, "w")
     dict_file.write(json.dumps(vocab))
+    prob_dict_file = open(prob_dict_path, "w")
+    prob_dict_file.write(json.dumps(prob_dict))
 
     print("processing training data...")
-    binarize(train_file_in, train_file_out, vocab)
+    # binarize(train_file_in, train_file_out, vocab)
 
     print("processing valid data...")
-    binarize(valid_file_in, valid_file_out, vocab)
+    # binarize(valid_file_in, valid_file_out, vocab)
     
     
 #     print("reading...")

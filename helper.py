@@ -1,6 +1,8 @@
 #helper functions
 import matplotlib.pyplot as plt #using PCA here
 import numpy as np
+import torch
+
 
 #d1vec is a 1 dim vec i.e. (batch_size,)
 #should be rewrite so that d1vec is Variable
@@ -29,12 +31,13 @@ def sentence_vector_wr_vectorize(answers, embedder, answers_prob, answers_length
   #answers_prob shape: (N,W)
   #embedded_answers shape: (N,W,D)
   embedded_answers = embedder(answers)
-  N, W, D = embedded_answers.shape
-  answers_prob = answers_prob.reshape((N,W,1))
+  N, W, D = embedded_answers.size()
+  # answers_prob = answers_prob.reshape((N,W,1))
+  answers_prob = answers_prob.view([N, W, 1])
   #doing wr
   embedded_answers = (a/(a+answers_prob))*embedded_answers #shape: (N,W,D)
   #here we also count <SOS>,<EOS>,<UNK> in calculation of wr
-  sentence_vec = np.mean(embedded_answers, axis = 1) #### Here not strictly follow the original paper
+  sentence_vec = torch.mean(embedded_answers, dim=1) #### Here not strictly follow the original paper
   return sentence_vec
   
 ######DONT KNOW HOW TO COMPUTE PCA######
