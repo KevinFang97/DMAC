@@ -140,6 +140,7 @@ if __name__ == '__main__':
     # n_words = 20 # for testing
     embedded_size = 256
     rnn_size = 1024
+    num_class = 10 # number of cluster classes
     
     test_dict = json.loads(open("data/vocab.json", "r").readline())
     # test_dict = dict(zip(test_dict.values(), test_dict.keys()))
@@ -148,18 +149,25 @@ if __name__ == '__main__':
     test_ans_file = open("data/valid.txt", "r")
     test_ans = []
     test_ans_prob = []
+    test_p = []
+    test_p_prob = []
     ans_samples = []
     max_ans_length = 0
+    max_p_length = 0
     for _ in range(30):
         ans_samples.append(test_ans_file.readline())
         ans_samples[-1] = ans_samples[-1].translate(string.maketrans("", ""), string.punctuation)
         ans_samples[-1] = ans_samples[-1].strip("\r\n").split("\t")
         max_ans_length = max(max_ans_length, len(ans_samples[-1][1]))
+        max_p_length = max(max_p_length, len(ans_samples[-1][0]))
     for i in range(30):
         test_ans.append([])
         test_ans_prob.append([])
+        test_p.append([])
+        test_p_prob.append([])
         ans_line = ans_samples[i]
         j = 0
+        k = 0
         for word in ans_line[1]:
             try:
                 test_ans[-1].append(int(test_dict[word]))
@@ -168,17 +176,34 @@ if __name__ == '__main__':
                 test_ans[-1].append(int(test_dict["UNK"]))
                 test_ans_prob[-1].append(float(test_prob_dict["UNK"]))
             j += 1
+        for word in ans_line[0]:
+            try:
+                test_p[-1].append(int(test_dict[word]))
+                test_p_prob[-1].append(float(test_prob_dict[word]))
+            except:
+                test_p[-1].append(int(test_dict["UNK"]))
+                test_p_prob[-1].append(float(test_prob_dict["UNK"]))
+            k += 1
         if j < max_ans_length:
             for j in range(j, max_ans_length):
-                test_ans[-1].append(int(test_dict["UNK"]))
-                test_ans_prob[-1].append(float(test_prob_dict["UNK"]))
+                test_ans[-1].append(int(test_dict["<EOS>"]))
+                test_ans_prob[-1].append(float(test_prob_dict["<EOS>"]))
+        if k < max_p_length:
+            for _ in range(k, max_p_length):
+                test_p[-1].append(int(test_dict["<EOS>"]))
+                test_p_prob[-1].append(float(test_prob_dict["<EOS>"]))
     test_ans = Variable(torch.LongTensor(test_ans))
     test_ans_prob = Variable(torch.FloatTensor(test_ans_prob))
+    test_p = Variable(torch.LongTensor(test_p))
+    test_p_prob = Variable(torch.FloatTensor(test_p_prob))
     embedder = nn.Embedding(n_words, embedded_size, padding_idx=EOS_token)
     embedded_answers = embedder(test_ans)
+    embedded_problems = embedder(test_p)
     if (use_cuda):
         embedded_answers = embedded_answers.cuda()
         test_ans_prob = test_ans_prob.cuda()
+        embedded_problems = embedded_problems.cuda()
+        test_p_prob = test_p_prob.cuda()
     sent_vec = sentence_vector_wr_pca(embedded_answers, test_ans_prob, max_ans_length, 1e-4) 
     
     '''
@@ -190,5 +215,9 @@ if __name__ == '__main__':
     print(km.labels_)
     '''
     encoder = Encoder(embedded_size, rnn_size)
+    classifier = Classifier(rnn_size, num_class)
     output, hidden = encoder.forward(embedded_answers)
+    hidden = torch.squeeze(hidden, 0)
+    C = classifier(hidden)
+    
     #for testing
