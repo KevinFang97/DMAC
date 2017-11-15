@@ -215,9 +215,11 @@ if __name__ == '__main__':
     print(km.labels_)
     '''
     encoder = Encoder(embedded_size, rnn_size)
+    decoder = Decoder(embedded_size, rnn_size, n_words, EOS_token)
     classifier = Classifier(rnn_size, num_class)
     output, hidden = encoder.forward(embedded_answers)
-    hidden = torch.squeeze(hidden, 0)
-    C = classifier(hidden)
+    C = classifier(torch.squeeze(hidden, 0))
+    init_C = torch.unsqueeze(C, 1)
+    print(decoder(init_C, hidden, embedder))
     
     #for testing

@@ -38,7 +38,7 @@ class Encoder(nn.Module):
     self.gru = nn.GRU(input_size, hidden_size, n_layers,
                       dropout=0.2, batch_first=True)
     if (use_cuda):
-      self.gru = self.gru.cuda()
+      self.cuda()
 
   def forward(self, input, hidden=None):
     if hidden is None:
@@ -56,39 +56,38 @@ class Encoder(nn.Module):
 #output hidden: (batch_size, hidden_size)
 
 class Decoder(nn.Module):
-  def __init__(self, input_size, hidden_size, num_class, EOS_token, n_layers=1, use_cuda=torch.cuda.is_available()):
+  def __init__(self, input_size, hidden_size, num_word, EOS_token, n_layers=1, use_cuda=torch.cuda.is_available()):
     super(Decoder, self).__init__()
     # self.n_layers = n_layers
     self.hidden_size = hidden_size
     self.use_cuda = use_cuda
-    self.initial_hidden = initial_hidden
     self.input_size = input_size
     self.EOS_token = EOS_token
     self.gru = nn.GRU(input_size, hidden_size, n_layers,
                       dropout=0.2, batch_first=True)
-    self.linear = nn.Linear(input_size, num_class)
-    self.relu = nn.RELU()
+    self.linear_C = nn.Linear(1, input_size)
+    self.linear = nn.Linear(hidden_size, num_word)
+    self.relu = nn.ReLU()
     self.softmax = nn.Softmax()
     if (use_cuda):
-      self.gru = self.gru.cuda()
-      self.linar = self.linear.cuda()
-      self.relu = self.relu.cuda()
-      self.softmax = self.softmax.cuda()
+      self.cuda()
 
-  def forward(self, C, init_hidden, max_len=30):
-    results = 
-    '''
-    eos_tensor = torch.Tensor([self.EOS_token])
-    if self.use_cuda:
-      eos_tensor.cuda()
-    eos_s = eos_tensor.repeat(init_hidden.size()[0])
-    '''
-    while i in range(max_len):
-      hidden = init_hidden
-      output, hidden = self.gru(input, hidden)
-      output = torch.squeeze(output, 0)
-      embedded_words = self.softmax(self.relu(self.linear(output)))
-    return output, hidden
+  def forward(self, C, init_hidden, embedder, max_len=30):
+    result = None
+    hidden = init_hidden
+    output = self.linear_C(C)
+    for i in range(max_len):
+      output, hidden = self.gru(output, hidden)
+      output = torch.squeeze(output)
+      _, output = torch.max(self.softmax(self.relu(self.linear(output))), -1)
+      output = torch.unsqueeze(output, 1)
+      if result is None:
+        result = output.cpu()
+      else:
+        result = torch.cat([result, output.cpu()], 1)
+      print(i)
+      output = embedder(output.cpu()).cuda()
+    return result
 
 class Classifier(nn.Module):
   def __init__(self, rnn_size, num_class, use_cuda=torch.cuda.is_available()):
@@ -99,10 +98,15 @@ class Classifier(nn.Module):
     self.softmax = torch.nn.Softmax()
     self.classifier = torch.nn.Linear(rnn_size, num_class)
     if use_cuda:
-      self.classifier = self.classifier.cuda()
+      self.cuda()
   
   def forward(self, input):
     score = self.classifier(input)
     _, C = torch.max(self.softmax(score), -1)
+    C = torch.unsqueeze(C, 1)
+    if self.use_cuda:
+      C = C.type(torch.cuda.FloatTensor)
+    else:
+      C = C.type(torch.FloatTensor)
     return C
     
