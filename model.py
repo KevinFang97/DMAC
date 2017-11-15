@@ -110,5 +110,5 @@ class Classifier(nn.Module):
       C = C.type(torch.cuda.FloatTensor)
     else:
       C = C.type(torch.FloatTensor)
-    return C
+    return C, score
     

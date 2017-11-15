@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import torch.optim as optim
 from sklearn.cluster import KMeans
 from helper import *
 from model import *
@@ -206,20 +207,23 @@ if __name__ == '__main__':
         test_p_prob = test_p_prob.cuda()
     sent_vec = sentence_vector_wr_pca(embedded_answers, test_ans_prob, max_ans_length, 1e-4) 
     
-    '''
     km = KMeans()
     if (use_cuda):
         km.fit(sent_vec.cpu().data.numpy())
+        target_C_labels = torch.from_numpy(km.labels_).type(torch.LongTensor).cuda()
     else:
         km.fit(sent_vec.data.numpy())
-    print(km.labels_)
-    '''
+        target_C_labels = torch.from_numpy(km.labels_).type(torch.LongTensor)
+
     encoder = Encoder(embedded_size, rnn_size)
     decoder = Decoder(embedded_size, rnn_size, n_words, EOS_token)
     classifier = Classifier(rnn_size, num_class)
     output, hidden = encoder.forward(embedded_answers)
-    C = classifier(torch.squeeze(hidden, 0))
+    C, score = classifier(torch.squeeze(hidden, 0))
+    CE_loss = torch.nn.CrossEntropyLoss()
+    loss = CE_loss(score, Variable(target_C_labels, requires_grad=False))
+    print(loss)
     init_C = torch.unsqueeze(C, 1)
     res_codes = decoder(init_C, hidden, embedder)
-    
-    #for testing
+    optim_vars = list(encoder.parameters()) + list(classifier.parameters()) + list(decoder.parameters())
+    optimizer = optim.Adam(optim_vars, lr=1e-3)
