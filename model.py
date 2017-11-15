@@ -66,9 +66,7 @@ class Decoder(nn.Module):
     self.gru = nn.GRU(input_size, hidden_size, n_layers,
                       dropout=0.2, batch_first=True)
     self.linear_C = nn.Linear(1, input_size)
-    self.linear = nn.Linear(hidden_size, num_word)
-    self.relu = nn.ReLU()
-    self.softmax = nn.Softmax()
+    self.linear = nn.Linear(hidden_size, input_size)
     if (use_cuda):
       self.cuda()
 
@@ -77,17 +75,21 @@ class Decoder(nn.Module):
     hidden = init_hidden
     output = self.linear_C(C)
     for i in range(max_len):
-      output, hidden = self.gru(output, hidden)
-      output = torch.squeeze(output)
-      _, output = torch.max(self.softmax(self.relu(self.linear(output))), -1)
-      output = torch.unsqueeze(output, 1)
+      output, hidden = self.step(output, hidden, embedder)
       if result is None:
-        result = output.cpu()
+        result = output
       else:
-        result = torch.cat([result, output.cpu()], 1)
-      print(i)
-      output = embedder(output.cpu()).cuda()
-    return result
+        result = torch.cat([result, output], 1)
+    return result.cuda() if self.use_cuda else result
+
+  def step(self, input, hidden, embedder):
+    output, hidden = self.gru(input, hidden)
+    hidden.detach_()
+    output = torch.squeeze(output)
+    output = self.linear(output)
+    output = torch.unsqueeze(output, 1)
+    return output, hidden
+      
 
 class Classifier(nn.Module):
   def __init__(self, rnn_size, num_class, use_cuda=torch.cuda.is_available()):

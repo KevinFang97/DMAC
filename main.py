@@ -220,6 +220,6 @@ if __name__ == '__main__':
     output, hidden = encoder.forward(embedded_answers)
     C = classifier(torch.squeeze(hidden, 0))
     init_C = torch.unsqueeze(C, 1)
-    print(decoder(init_C, hidden, embedder))
+    res_codes = decoder(init_C, hidden, embedder)
     
     #for testing
