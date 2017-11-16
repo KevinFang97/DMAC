@@ -72,12 +72,29 @@ class Decoder(nn.Module):
     if (use_cuda):
       self.cuda()
 
-  def forward(self, C, init_hidden, embedder, max_len=30):
+  '''
+  It will it will skip <SOS> in target_answer when training
+  '''
+  def forward(self, C, init_hidden, max_len=30, is_training=False, target_answer=None):
+    if is_training and target_answer is None:
+      raise Exception("Please feed target answer!")
     result = None
     hidden = init_hidden
     output = self.linear_C(C)
+    # commented out following lines for testing on laptop, since running these in batch in pytorch will consume too much memory
+    '''
+    if is_training:
+      local_target_answer = target_answer
+      local_target_answer[:, 0:1, :] = output
+      if self.use_cuda: local_target_answer = local_target_answer.cuda()
+      result, hidden = self.gru(local_target_answer, hidden)
+      hidden.detach_()
+      result = self.relu(self.linear(result))
+    '''
     for i in range(max_len):
-      output, hidden = self.step(output, hidden, embedder)
+      if is_training and i > 0:
+        output = target_answer[:, i:i+1, :]
+      output, hidden = self.step(output, hidden)
       if result is None:
         result = output
       else:
@@ -85,12 +102,12 @@ class Decoder(nn.Module):
     result = self.relu(self.linear_result(result))
     return result
 
-  def step(self, input, hidden, embedder):
+  def step(self, input, hidden):
     output, hidden = self.gru(input, hidden)
     hidden.detach_()
-    output = torch.squeeze(output)
-    output = self.linear(output)
-    output = torch.unsqueeze(output, 1)
+    # output = torch.squeeze(output)
+    output = self.relu(self.linear(output))
+    # output = torch.unsqueeze(output, 1)
     return output, hidden
       
 
