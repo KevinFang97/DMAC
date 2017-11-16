@@ -137,8 +137,8 @@ def _train_step(q_batch, a_batch, q_lens, a_lens, classifier, embedder,
 
 if __name__ == '__main__':
 
-    n_words = 300003
-    # n_words = 20 # for testing
+    # n_words = 300003
+    n_words = 1000 # for testing
     embedded_size = 256
     rnn_size = 1024
     num_class = 10 # number of cluster classes
@@ -171,19 +171,25 @@ if __name__ == '__main__':
         k = 0
         for word in ans_line[1]:
             try:
-                test_ans[-1].append(int(test_dict[word]))
-                test_ans_prob[-1].append(float(test_prob_dict[word]))
+                if int(test_dict[word]) > n_words:
+                    w = "UNK"
+                else:
+                    w = word
             except:
-                test_ans[-1].append(int(test_dict["UNK"]))
-                test_ans_prob[-1].append(float(test_prob_dict["UNK"]))
+                w = "UNK"
+            test_ans[-1].append(int(test_dict[w]))
+            test_ans_prob[-1].append(float(test_prob_dict[w]))
             j += 1
         for word in ans_line[0]:
             try:
-                test_p[-1].append(int(test_dict[word]))
-                test_p_prob[-1].append(float(test_prob_dict[word]))
+                if int(test_dict[word]) > n_words:
+                    w = "UNK"
+                else:
+                    w = word
             except:
-                test_p[-1].append(int(test_dict["UNK"]))
-                test_p_prob[-1].append(float(test_prob_dict["UNK"]))
+                w = "UNK"
+            test_p[-1].append(int(test_dict[w]))
+            test_p_prob[-1].append(float(test_prob_dict[w]))
             k += 1
         if j < max_ans_length:
             for j in range(j, max_ans_length):
@@ -194,6 +200,8 @@ if __name__ == '__main__':
                 test_p[-1].append(int(test_dict["<EOS>"]))
                 test_p_prob[-1].append(float(test_prob_dict["<EOS>"]))
     test_ans = Variable(torch.LongTensor(test_ans))
+    # test_ans_onehot = torch.zeros(30, 63, embedded_size).scatter_(1, test_ans.data, 1)
+    # print(test_ans_onehot)
     test_ans_prob = Variable(torch.FloatTensor(test_ans_prob))
     test_p = Variable(torch.LongTensor(test_p))
     test_p_prob = Variable(torch.FloatTensor(test_p_prob))
@@ -205,6 +213,7 @@ if __name__ == '__main__':
         test_ans_prob = test_ans_prob.cuda()
         embedded_problems = embedded_problems.cuda()
         test_p_prob = test_p_prob.cuda()
+        test_ans = test_ans.cuda()
     sent_vec = sentence_vector_wr_pca(embedded_answers, test_ans_prob, max_ans_length, 1e-4) 
     
     km = KMeans()
@@ -214,16 +223,18 @@ if __name__ == '__main__':
     else:
         km.fit(sent_vec.data.numpy())
         target_C_labels = torch.from_numpy(km.labels_).type(torch.LongTensor)
-
+        
     encoder = Encoder(embedded_size, rnn_size)
     decoder = Decoder(embedded_size, rnn_size, n_words, EOS_token)
     classifier = Classifier(rnn_size, num_class)
     output, hidden = encoder.forward(embedded_answers)
     C, score = classifier(torch.squeeze(hidden, 0))
     CE_loss = torch.nn.CrossEntropyLoss()
-    loss = CE_loss(score, Variable(target_C_labels, requires_grad=False))
-    print(loss)
     init_C = torch.unsqueeze(C, 1)
-    res_codes = decoder(init_C, hidden, embedder)
+    res_codes = decoder(init_C, hidden, embedder, max_ans_length)
     optim_vars = list(encoder.parameters()) + list(classifier.parameters()) + list(decoder.parameters())
     optimizer = optim.Adam(optim_vars, lr=1e-3)
+    loss = CE_loss(score, Variable(target_C_labels, requires_grad=False))
+    for i in range(max_ans_length):
+        loss += CE_loss(res_codes[:, i, :], test_ans[:, i])
+    print(loss)

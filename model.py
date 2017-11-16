@@ -67,6 +67,8 @@ class Decoder(nn.Module):
                       dropout=0.2, batch_first=True)
     self.linear_C = nn.Linear(1, input_size)
     self.linear = nn.Linear(hidden_size, input_size)
+    self.linear_result = nn.Linear(input_size, num_word)
+    self.relu = nn.ReLU()
     if (use_cuda):
       self.cuda()
 
@@ -80,7 +82,8 @@ class Decoder(nn.Module):
         result = output
       else:
         result = torch.cat([result, output], 1)
-    return result.cuda() if self.use_cuda else result
+    result = self.relu(self.linear_result(result))
+    return result
 
   def step(self, input, hidden, embedder):
     output, hidden = self.gru(input, hidden)
